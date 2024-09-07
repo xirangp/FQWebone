@@ -1,0 +1,57 @@
+# 把这个文件复制到 .github/workflows/ 文件夹下
+# 然后给仓库点 star 即可激活自动打包
+# 可以在 action 页面查看打包情况
+
+name: Android CI
+
+
+on:
+  push:
+    paths-ignore:
+      - assets/**
+      - .gitignore
+      - LICENCE
+      - README.md
+    watch:
+      types: [started]
+
+jobs:
+  buildApkFile:
+    name: Build Debug APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: 17
+          distribution: temurin
+          
+      - name: Allow gradlew permission
+        run: chmod +x ./gradlew
+        
+      - name: Set environmental variables
+        shell: bash
+        env:
+          JSON_CONTENT: ${{ secrets.KEYSTOREPASSWORD }}
+        if: ${{ env.JSON_CONTENT != '' }}
+        run: |
+          printf 'KEYSTOREPASSWORD<<EOF\n%s\nEOF\n' "$JSON_CONTENT" >> $GITHUB_ENV
+          
+      - name: Set up firebase
+        shell: bash 
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_ANALYTICS }}
+        if: ${{ env.GOOGLE_SERVICES_JSON != '' }}
+        run: |
+          printf 'GOOGLE_ANALYTICS<<EOF\n%s\nEOF\n' "$GOOGLE_SERVICES_JSON" >> $GITHUB_ENV
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --warning-mode all
+          
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: Android Code Editor Debug Apk
+          path: app/build/outputs/apk/debug
